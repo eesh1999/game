@@ -2,21 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Bunny Dash 🐰</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap');
 
-*{margin:0;padding:0;box-sizing:border-box;}
+*{margin:0;padding:0;box-sizing:border-box; user-select: none; -webkit-user-select: none;}
 :root{
   --peach:#FFB5A7;--lavender:#C8B8E8;--mint:#B5EAD7;--sky:#AED9E0;
   --coral:#FF6B6B;--yellow:#FFE66D;--pink:#FF9BC9;--cream:#FFF5E4;
 }
 body{
   background:linear-gradient(135deg,#FFB5A7 0%,#C8B8E8 40%,#AED9E0 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  height:100vh;overflow:hidden;font-family:'Nunito',sans-serif;
-  position:relative;
+  height:100vh; overflow:hidden; font-family:'Nunito',sans-serif;
+  position:relative; width: 100vw;
 }
 
 /* Floating bg circles */
@@ -27,9 +26,18 @@ body{
 @keyframes floatBlob{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-20px) scale(1.05);}}
 
 #gameWrapper{
-  position:relative;width:480px;height:640px;border-radius:28px;
+ 
+  width:480px; height:640px;
+  border-radius:28px;
   box-shadow:0 30px 80px rgba(180,120,160,0.4),0 0 0 4px rgba(255,255,255,0.6),inset 0 0 0 2px rgba(255,255,255,0.3);
-  overflow:hidden;background:#1a0a2e;
+  overflow:hidden; background:#1a0a2e;
+  
+  /
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  
 }
 
 #threeCanvas{display:block;width:100%;height:100%;}
@@ -186,6 +194,36 @@ body{
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// ─── RESPONSIVENESS HANDLER ─────────────────────────────────────────────────────
+// Keeps the 480x640 game scaled to fit any screen without changing game logic
+function fitToScreen() {
+  const wrapper = document.getElementById('gameWrapper');
+  const baseWidth = 480;
+  const baseHeight = 640;
+  
+  // Get window dimensions
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  
+  // Calculate scale factors (leave a tiny bit of margin)
+  const scaleX = (windowWidth - 20) / baseWidth;
+  const scaleY = (windowHeight - 20) / baseHeight;
+  
+  // Use the smaller scale to ensure it fits entirely
+  let scale = Math.min(scaleX, scaleY);
+  
+  // Prevent it from being larger than 1.0 on massive screens (optional, keeps it crisp)
+  // scale = Math.min(scale, 1.0); 
+  
+  // Apply transformation
+  wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+// Run on load and resize
+window.addEventListener('resize', fitToScreen);
+window.addEventListener('orientationchange', fitToScreen);
+fitToScreen();
+
 // ─── HIGH SCORE DATA SYSTEM (Single Best Score) ──────────────────────────────
 let bestScore = parseInt(localStorage.getItem('bunnyDashBestScore')) || 0;
 let bestName = localStorage.getItem('bunnyDashBestName') || 'Guest';
@@ -201,7 +239,8 @@ updateMenuHighScore();
 // ─── SETUP ───────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('threeCanvas');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-renderer.setSize(480,640);
+// Keep internal resolution fixed to maintain gameplay pace
+renderer.setSize(480,640); 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -531,12 +570,24 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keyup',e=>{keys[e.code]=false;});
 
 let tx0=0,ty0=0;
-canvas.addEventListener('touchstart',e=>{tx0=e.touches[0].clientX;ty0=e.touches[0].clientY;});
+canvas.addEventListener('touchstart',e=>{
+  tx0=e.touches[0].clientX;
+  ty0=e.touches[0].clientY;
+  // e.preventDefault(); // Optional: prevents scrolling, but handled by CSS user-select:none
+}, {passive: false});
+
 canvas.addEventListener('touchend',e=>{
   if(state!=='play') return;
-  const dx=e.changedTouches[0].clientX-tx0,dy=e.changedTouches[0].clientY-ty0;
-  if(Math.abs(dx)>Math.abs(dy)){if(dx>25)moveLane(1);else if(dx<-25)moveLane(-1);}
-  else{if(dy<-25&&plane.jumpCount<2)doJump();else if(dy>25)doSlide();}
+  const dx=e.changedTouches[0].clientX-tx0;
+  const dy=e.changedTouches[0].clientY-ty0;
+  
+  if(Math.abs(dx)>Math.abs(dy)){
+    if(dx>25) moveLane(1);
+    else if(dx<-25) moveLane(-1);
+  } else {
+    if(dy<-25 && plane.jumpCount<2) doJump();
+    else if(dy>25) doSlide();
+  }
 });
 
 // Menu Buttons
